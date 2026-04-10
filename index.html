@@ -677,21 +677,45 @@ async function doLogin(){
   showLoading();
   try{
     if(isConnected()){
-      const r=await gasPost({action:'login',name,password:pw});
+      // CORS 문제 완전 해결: 로그인도 GET 방식으로 처리
+      const url=getGasUrl();
+      const payload=JSON.stringify({action:'login',name,password:pw});
+      let r=null;
+      try{
+        // 방법1: POST (같은 조직 내부에서 작동)
+        const res=await fetch(url,{method:'POST',headers:{'Content-Type':'text/plain'},body:payload});
+        r=await res.json();
+      }catch(e1){
+        // 방법2: GET 쿼리스트링 방식 (CORS 우회)
+        const res=await fetch(`${url}?payload=${encodeURIComponent(payload)}`);
+        r=await res.json();
+      }
       if(r&&r.success){
         SESSION={token:r.token,name:r.name,role:r.role,isGuest:false};
         localStorage.setItem(LS_TOKEN,r.token);
         localStorage.setItem(LS_USER,JSON.stringify({name:r.name,role:r.role}));
         enterApp();
-      }else{showLoginError(r?.error||'로그인 실패');}
+      }else{
+        // GAS 연결은 됐지만 계정 없음 → 로컬 모드 허용
+        if(name==='관리자'&&pw==='admin1234'){
+          SESSION={token:'LOCAL_ADMIN',name:'관리자',role:'ADMIN',isGuest:false};
+          enterApp();toast('로컬 관리자로 로그인 (GAS 계정 설정 권장)','warn');
+        }else{showLoginError(r?.error||'이름 또는 비밀번호가 올바르지 않습니다');}
+      }
     }else{
-      // 로컬 모드: 기본 계정 허용
+      // GAS 미연결: 로컬 모드
       if(name==='관리자'&&pw==='admin1234'){
         SESSION={token:'LOCAL_ADMIN',name:'관리자',role:'ADMIN',isGuest:false};
-        enterApp();toast('로컬 모드로 로그인 (GAS 연결 권장)','warn');
-      }else{showLoginError('GAS 미연결 상태: 관리자/admin1234 로 로그인하세요.');}
+        enterApp();toast('로컬 모드로 로그인 (설정 탭에서 GAS URL 입력 필요)','warn');
+      }else{showLoginError('GAS 미연결 상태입니다. 설정 탭에서 GAS URL을 먼저 입력하거나, 관리자/admin1234로 로그인하세요.');}
     }
-  }catch(e){showLoginError('연결 오류: '+e.message);}
+  }catch(e){
+    // 모든 연결 실패 → 로컬 폴백
+    if(name==='관리자'&&pw==='admin1234'){
+      SESSION={token:'LOCAL_ADMIN',name:'관리자',role:'ADMIN',isGuest:false};
+      enterApp();toast('GAS 연결 실패, 로컬 모드로 로그인됨','warn');
+    }else{showLoginError('연결 오류: '+e.message);}
+  }
   finally{hideLoading();}
 }
 
@@ -732,21 +756,72 @@ async function doLogout(){
 // ══════════════════════════════════════════════════════════════
 //  DATA
 // ══════════════════════════════════════════════════════════════
-function loadLocal(){const r=localStorage.getItem(LS_DATA);if(!r){localStorage.setItem(LS_DATA,JSON.stringify(INITIAL_DATA));return JSON.parse(JSON.stringify(INITIAL_DATA));}return JSON.parse(r);}
+function loadLocal(){
+  const r=localStorage.getItem(LS_DATA);
+  if(!r){
+    const init=INITIAL_DATA.map(normalizeSchedule);
+    localStorage.setItem(LS_DATA,JSON.stringify(init));
+    return init;
+  }
+  try{
+    const parsed=JSON.parse(r);
+    // 혹시 정규화 안 된 데이터가 있으면 정규화
+    return parsed.map(normalizeSchedule);
+  }catch(e){return [];}
+}
 function saveLocal(d){localStorage.setItem(LS_DATA,JSON.stringify(d));}
 function getGasUrl(){return localStorage.getItem(LS_GAS)||'';}
 function isConnected(){return !!getGasUrl();}
 
-async function gasGet(p={}){const url=getGasUrl();if(!url)return null;const r=await fetch(`${url}?${new URLSearchParams(p)}`,{method:'GET'});return r.json();}
-async function gasPost(b){const url=getGasUrl();if(!url)return null;const r=await fetch(url,{method:'POST',body:JSON.stringify(b)});return r.json();}
+async function gasGet(p={}){
+  const url=getGasUrl();if(!url)return null;
+  const r=await fetch(`${url}?${new URLSearchParams(p)}`,{method:'GET'});
+  return r.json();
+}
+async function gasPost(b){
+  const url=getGasUrl();if(!url)return null;
+  try{
+    const r=await fetch(url,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify(b)});
+    return await r.json();
+  }catch(e){
+    // CORS 우회: GET 방식으로 재시도 (action과 payload를 쿼리스트링으로)
+    const qs=new URLSearchParams({payload:JSON.stringify(b)});
+    const r2=await fetch(`${url}?${qs}`,{method:'GET'});
+    return await r2.json();
+  }
+}
+
+// GAS에서 받은 한글 키 데이터를 통일된 형식으로 정규화
+function normalizeSchedule(d){
+  return {
+    ID:          d['ID']||d['id']||('LOCAL_'+Math.random().toString(36).slice(2)),
+    어린이집:    d['어린이집']||d['childcare']||'',
+    원장:        d['원장']||d['director']||'',
+    KCCT연구원:  d['KCCT연구원']||d['kcct']||'',
+    재단연구원:  d['재단연구원']||d['researcher']||'',
+    출장일:      d['출장일']||d['date']||'',
+    시간:        d['시간']||d['time']||'',
+    대면구분:    d['대면구분']||d['type']||'대면',
+    기타사항:    d['기타사항']||d['note']||'',
+    완료여부:    d['완료여부']||d['done']||'N',
+    입력자:      d['입력자']||d['author']||'',
+    입력일시:    d['입력일시']||'',
+    수정일시:    d['수정일시']||'',
+  };
+}
 
 async function syncData(silent=false){
   if(!isConnected()){setSyncStatus(false,'로컬 모드');return;}
   if(!silent)showLoading();
   try{
     const r=await gasGet({action:'getAll'});
-    if(r&&r.schedules){saveLocal(r.schedules);setSyncStatus(true,`동기화 ${new Date().toLocaleTimeString('ko-KR')}`);refreshAll();}
-    // 팀원 목록도 동기화
+    if(r&&r.schedules){
+      // 받은 데이터를 정규화해서 저장 → 달력/목록 모두 동일한 키로 읽음
+      const normalized=r.schedules.map(normalizeSchedule);
+      saveLocal(normalized);
+      setSyncStatus(true,`동기화 ${new Date().toLocaleTimeString('ko-KR')}`);
+      refreshAll();
+    }
     const cfg=await gasGet({action:'getConfig'});
     if(cfg&&cfg.kcct){KCCT_LIST=cfg.kcct;RESEARCHER_LIST=cfg.researcher;kcctTags=[...KCCT_LIST];resTags=[...RESEARCHER_LIST];populatePersonSelects();}
   }catch(e){setSyncStatus(false,'연결 오류');if(!silent)toast('서버 연결 실패. 로컬 데이터로 표시.','warn');}
