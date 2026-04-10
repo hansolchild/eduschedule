@@ -691,15 +691,14 @@ async function doLogin(){
         r=await res.json();
       }
       if(r&&r.success){
-        SESSION={token:r.token,name:r.name,role:r.role,isGuest:false};
-        localStorage.setItem(LS_TOKEN,r.token);
+        // v4: 토큰 없이 이름/역할만 저장
+        SESSION={token:'GAS_SESSION',name:r.name,role:r.role,isGuest:false};
         localStorage.setItem(LS_USER,JSON.stringify({name:r.name,role:r.role}));
         enterApp();
       }else{
-        // GAS 연결은 됐지만 계정 없음 → 로컬 모드 허용
         if(name==='관리자'&&pw==='admin1234'){
           SESSION={token:'LOCAL_ADMIN',name:'관리자',role:'ADMIN',isGuest:false};
-          enterApp();toast('로컬 관리자로 로그인 (GAS 계정 설정 권장)','warn');
+          enterApp();toast('로컬 관리자로 로그인','warn');
         }else{showLoginError(r?.error||'이름 또는 비밀번호가 올바르지 않습니다');}
       }
     }else{
@@ -847,7 +846,7 @@ async function updateOnServer(id,data){
 async function deleteOnServer(id){
   if(SESSION.isGuest||SESSION.role==='USER'){toast('삭제 권한이 없습니다. 관리자에게 문의하세요.','err');return null;}
   if(!isConnected()){saveLocal(loadLocal().filter(d=>d.ID!==id));return{success:true};}
-  const r=await gasPost({action:'delete',id,token:SESSION.token});if(r&&r.success)await syncData(true);return r;
+  const r=await gasPost({action:'delete',id});if(r&&r.success)await syncData(true);return r;
 }
 async function toggleOnServer(id){
   if(SESSION.isGuest){toast('게스트는 변경할 수 없습니다.','err');return null;}
@@ -1256,7 +1255,7 @@ async function saveMemberConfig(){
   showLoading();
   try{
     if(isConnected()){
-      const r=await gasPost({action:'updateConfig',token:SESSION.token,kcct:kcctTags,researcher:resTags});
+      const r=await gasPost({action:'updateConfig',kcct:kcctTags,researcher:resTags});
       if(!r||!r.success){toast(r?.error||'저장 실패','err');hideLoading();return;}
     }
     KCCT_LIST=[...kcctTags];RESEARCHER_LIST=[...resTags];
@@ -1272,7 +1271,7 @@ async function loadAdminList(){
   if(!isConnected()){document.getElementById('adminListBody').innerHTML=`<tr><td colspan="5" style="text-align:center;padding:14px;color:var(--muted);">GAS 연결 시 사용 가능</td></tr>`;return;}
   showLoading();
   try{
-    const r=await gasGet({action:'getAdmins',token:SESSION.token});
+    const r=await gasGet({action:'getAdmins'});
     if(r&&r.admins){
       document.getElementById('adminListBody').innerHTML=r.admins.map(a=>`<tr>
         <td><b>${a.name}</b></td>
@@ -1293,31 +1292,31 @@ async function submitAddUser(){
   const name=document.getElementById('au_name').value.trim();const pw=document.getElementById('au_pw').value;const role=document.getElementById('au_role').value;
   if(!name||!pw){toast('이름과 비밀번호를 입력하세요.','err');return;}
   showLoading();
-  try{const r=await gasPost({action:'addAdmin',token:SESSION.token,data:{name,password:pw,role}});if(r&&r.success){closeAddUserModal();loadAdminList();toast('✅ 사용자 추가 완료');}else toast(r?.error||'실패','err');}
+  try{const r=await gasPost({action:'addAdmin',data:{name,password:pw,role}});if(r&&r.success){closeAddUserModal();loadAdminList();toast('✅ 사용자 추가 완료');}else toast(r?.error||'실패','err');}
   catch(e){toast('오류','err');}finally{hideLoading();}
 }
 async function toggleUserActive(name,val){
-  showLoading();try{const r=await gasPost({action:'updateAdmin',token:SESSION.token,name,data:{active:val}});if(r&&r.success){loadAdminList();toast('상태 변경 완료');}else toast(r?.error,'err');}catch(e){toast('오류','err');}finally{hideLoading();}
+  showLoading();try{const r=await gasPost({action:'updateAdmin',name,data:{active:val}});if(r&&r.success){loadAdminList();toast('상태 변경 완료');}else toast(r?.error,'err');}catch(e){toast('오류','err');}finally{hideLoading();}
 }
 async function deleteUser(name){
   if(!confirm(`"${name}" 계정을 삭제하시겠습니까?`))return;showLoading();
-  try{const r=await gasPost({action:'deleteAdmin',token:SESSION.token,name});if(r&&r.success){loadAdminList();toast('삭제 완료');}else toast(r?.error,'err');}catch(e){toast('오류','err');}finally{hideLoading();}
+  try{const r=await gasPost({action:'deleteAdmin',name});if(r&&r.success){loadAdminList();toast('삭제 완료');}else toast(r?.error,'err');}catch(e){toast('오류','err');}finally{hideLoading();}
 }
 function openResetPwModal(name){document.getElementById('resetPwTarget').textContent=name;document.getElementById('resetPwInput').value='';document.getElementById('resetPwModal').classList.add('open');document.getElementById('resetPwModal')._target=name;}
 async function submitResetPw(){
   const name=document.getElementById('resetPwModal')._target;const pw=document.getElementById('resetPwInput').value;
   if(!pw){toast('새 비밀번호를 입력하세요.','err');return;}showLoading();
-  try{const r=await gasPost({action:'resetPassword',token:SESSION.token,name,newPw:pw});if(r&&r.success){document.getElementById('resetPwModal').classList.remove('open');toast(`✅ "${name}" 비밀번호 초기화 완료`);}else toast(r?.error,'err');}catch(e){toast('오류','err');}finally{hideLoading();}
+  try{const r=await gasPost({action:'resetPassword',name,newPw:pw});if(r&&r.success){document.getElementById('resetPwModal').classList.remove('open');toast(`✅ "${name}" 비밀번호 초기화 완료`);}else toast(r?.error,'err');}catch(e){toast('오류','err');}finally{hideLoading();}
 }
 async function changeMyPassword(){
   const pw1=document.getElementById('newPw1').value;const pw2=document.getElementById('newPw2').value;
   if(!pw1){toast('새 비밀번호를 입력하세요.','err');return;}if(pw1!==pw2){toast('비밀번호가 일치하지 않습니다.','err');return;}
-  showLoading();try{const r=await gasPost({action:'resetPassword',token:SESSION.token,name:SESSION.name,newPw:pw1});if(r&&r.success){document.getElementById('newPw1').value='';document.getElementById('newPw2').value='';toast('✅ 비밀번호가 변경되었습니다.');}else toast(r?.error,'err');}catch(e){toast('오류','err');}finally{hideLoading();}
+  showLoading();try{const r=await gasPost({action:'resetPassword',name:SESSION.name,newPw:pw1});if(r&&r.success){document.getElementById('newPw1').value='';document.getElementById('newPw2').value='';toast('✅ 비밀번호가 변경되었습니다.');}else toast(r?.error,'err');}catch(e){toast('오류','err');}finally{hideLoading();}
 }
 async function loadAuditLog(){
   if(!isConnected()){toast('GAS 연결 후 사용 가능','warn');return;}showLoading();
   try{
-    const r=await gasGet({action:'getLogs',token:SESSION.token});
+    const r=await gasGet({action:'getLogs'});
     if(r&&r.logs){
       document.getElementById('auditLogBody').innerHTML=r.logs.length===0?`<tr><td colspan="4" style="text-align:center;color:var(--muted);">로그 없음</td></tr>`:r.logs.map(l=>`<tr><td style="white-space:nowrap;font-size:11px;color:var(--muted);">${l.t}</td><td><span class="log-action log-${l.action}">${l.action}</span></td><td>${l.actor}</td><td style="color:var(--muted);font-size:12px;">${l.target}</td></tr>`).join('');
     }else toast(r?.error||'오류','err');
@@ -1370,16 +1369,16 @@ function init(){
 
 // 자동 로그인 복원 시도
 window.addEventListener('DOMContentLoaded',()=>{
-  const savedToken=localStorage.getItem(LS_TOKEN);const savedUser=localStorage.getItem(LS_USER);
-  if(savedToken&&savedUser){
-    const u=JSON.parse(savedUser);
-    SESSION={token:savedToken,name:u.name,role:u.role,isGuest:false};
-    // 토큰 유효성 검증 (GAS 연결된 경우)
-    if(isConnected()){
-      gasPost({action:'verifyToken',token:savedToken}).then(r=>{
-        if(r&&r.valid){enterApp();}else{localStorage.removeItem(LS_TOKEN);localStorage.removeItem(LS_USER);}
-      }).catch(()=>enterApp());  // 오프라인이면 그냥 진입
-    }else{enterApp();}
+  // v4: 토큰 없이 저장된 사용자 정보로 자동 복원
+  const savedUser=localStorage.getItem(LS_USER);
+  if(savedUser){
+    try{
+      const u=JSON.parse(savedUser);
+      if(u.name&&u.role){
+        SESSION={token:'GAS_SESSION',name:u.name,role:u.role,isGuest:false};
+        enterApp();
+      }
+    }catch(e){localStorage.removeItem(LS_USER);}
   }
 });
 </script>
