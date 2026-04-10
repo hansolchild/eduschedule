@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>교육연구팀 출장일정관리시스템</title>
+<title>연구어린이집일정관리시스템</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700;800;900&display=swap');
@@ -692,11 +692,6 @@ async function doLogin(){
     }
   }catch(e){showLoginError('연결 오류: '+e.message);}
   finally{hideLoading();}
-}
-
-function guestLogin(){
-  SESSION={token:'GUEST',name:'게스트',role:'GUEST',isGuest:true};
-  enterApp();toast('게스트 접속: 조회만 가능합니다.','warn');
 }
 
 function enterApp(){
