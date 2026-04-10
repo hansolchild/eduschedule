@@ -635,7 +635,10 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
 //  CONFIG & STATE
 // ══════════════════════════════════════════════════════════════
 const LS_GAS   = 'kcct_gas_url';
-const LS_APIKEY= 'kcct_api_key';       // API 키 (설정탭에서 입력)
+const LS_APIKEY= 'kcct_api_key';
+// ★ API 키 내장값 — GAS 스크립트 속성의 API_KEY와 동일하게 설정하세요
+// 관리자가 이 값을 설정하면 모든 사용자가 자동으로 적용됩니다
+const EMBEDDED_API_KEY = '';  // 예: 'Hansol@2026!'
 const LS_DATA  = 'kcct_schedules_v3';
 const LS_INTV  = 'kcct_refresh_interval';
 const LS_TOKEN = 'kcct_session_token';
@@ -670,17 +673,19 @@ async function doLogin(){
   showLoading();
   try{
     if(isConnected()){
-      // CORS 문제 완전 해결: 로그인도 GET 방식으로 처리
       const url=getGasUrl();
-      const payload=JSON.stringify({action:'login',name,password:pw});
+      // API 키 포함 (설정탭에서 입력한 값)
+      const apiKey=getApiKey();
+      const payload=JSON.stringify({action:'login',name,password:pw,key:apiKey});
       let r=null;
       try{
-        // 방법1: POST (같은 조직 내부에서 작동)
+        // 방법1: POST
         const res=await fetch(url,{method:'POST',headers:{'Content-Type':'text/plain'},body:payload});
         r=await res.json();
       }catch(e1){
         // 방법2: GET 쿼리스트링 방식 (CORS 우회)
-        const res=await fetch(`${url}?payload=${encodeURIComponent(payload)}`);
+        const qs=new URLSearchParams({payload:JSON.stringify({action:'login',name,password:pw,key:apiKey}),key:apiKey});
+        const res=await fetch(`${url}?${qs}`);
         r=await res.json();
       }
       if(r&&r.success){
@@ -768,7 +773,11 @@ function saveLocal(d){localStorage.setItem(LS_DATA,JSON.stringify(d));}
 function getGasUrl(){return localStorage.getItem(LS_GAS)||'';}
 function isConnected(){return !!getGasUrl();}
 
-function getApiKey(){ return localStorage.getItem(LS_APIKEY)||''; }
+function getApiKey(){
+  // 내장 키 우선 사용 (모든 사용자 자동 적용)
+  // 없으면 설정탭에서 수동 입력한 값 사용 (관리자 폴백)
+  return EMBEDDED_API_KEY || localStorage.getItem(LS_APIKEY) || '';
+}
 async function gasGet(p={}){
   const url=getGasUrl();if(!url)return null;
   // API 키 자동 포함
