@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>연구어린이집일정관리시스템</title>
+<title>교육연구팀 출장일정관리시스템</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700;800;900&display=swap');
@@ -289,8 +289,8 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
   <div class="login-box">
     <div class="login-logo">
       <div class="logo-icon">📅</div>
-      <div class="login-title">연구어린이집일정관리시스템</div>
-      <div class="login-sub">한솔영유아교육연구소</div>
+      <div class="login-title">출장일정관리시스템</div>
+      <div class="login-sub">한솔어린이보육재단 교육연구팀</div>
     </div>
     <div class="login-error" id="loginError"></div>
     <div class="fgrp" style="margin-bottom:12px;">
@@ -303,9 +303,10 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
     </div>
     <button class="btn btn-primary" style="width:100%;justify-content:center;padding:12px;" onclick="doLogin()">🔐 로그인</button>
     <div style="margin-top:16px;text-align:center;">
+      <button class="btn btn-ghost btn-sm" onclick="guestLogin()">👁 게스트 접속 (조회만 가능)</button>
     </div>
     <div style="margin-top:14px;padding:10px;background:var(--surface2);border-radius:var(--r-sm);font-size:11px;color:var(--muted);text-align:center;">
-      사이트 관리자: <b>한솔영유아교육연구소</b><br>
+      최초 관리자: <b>관리자 / admin1234</b><br>GAS 연결 후 반드시 비밀번호를 변경하세요.
     </div>
   </div>
 </div>
@@ -694,6 +695,11 @@ async function doLogin(){
   finally{hideLoading();}
 }
 
+function guestLogin(){
+  SESSION={token:'GUEST',name:'게스트',role:'GUEST',isGuest:true};
+  enterApp();toast('게스트 접속: 조회만 가능합니다.','warn');
+}
+
 function enterApp(){
   document.getElementById('loginScreen').style.display='none';
   document.getElementById('appShell').style.display='block';
@@ -951,16 +957,17 @@ function renderWeekView(data,ws){
 function renderPersonPage(){
   const data=loadLocal();const year=parseInt(document.getElementById('pyear').value)||TODAY.getFullYear();
   const month=parseInt(document.getElementById('pmonth').value)||null;const showDone=document.getElementById('pshowDone').value;
-  let fd=data.filter(d=>getYear(d.출장일)===year);
-  if(month)fd=fd.filter(d=>getMonth(d.출장일)===month);
-  if(showDone==='pending')fd=fd.filter(d=>d.완료여부!=='Y');if(showDone==='done')fd=fd.filter(d=>d.완료여부==='Y');
+  let fd=data.filter(d=>getYear(ev_date(d))===year);
+  if(month)fd=fd.filter(d=>getMonth(ev_date(d))===month);
+  if(showDone==='pending')fd=fd.filter(d=>!ev_done(d));
+  if(showDone==='done')fd=fd.filter(d=>ev_done(d));
   const all=[...new Set([...KCCT_LIST,...RESEARCHER_LIST])];
   document.getElementById('personGrid').innerHTML=all.map(name=>{
-    const my=fd.filter(d=>d.KCCT연구원===name||d.재단연구원===name);
-    const up=my.filter(d=>d.출장일>=TODAYSTR&&d.완료여부!=='Y').sort((a,b)=>a.출장일.localeCompare(b.출장일));
-    const done=my.filter(d=>d.완료여부==='Y').length;
+    const my=fd.filter(d=>ev_kcct(d)===name||ev_res(d)===name);
+    const up=my.filter(d=>ev_date(d)>=TODAYSTR&&!ev_done(d)).sort((a,b)=>ev_date(a).localeCompare(ev_date(b)));
+    const done=my.filter(d=>ev_done(d)).length;
     const isK=KCCT_LIST.includes(name),isR=RESEARCHER_LIST.includes(name);
-    return`<div class="pcard"><div class="phd" style="background:${getColor(name)}18;border-bottom:1px solid ${getColor(name)}30;"><div class="pavatar" style="background:${getColor(name)}">${name[0]}</div><div><div class="pname">${name}</div><div class="prole">${isK?'<span class="badge b-kcct">KCCT</span>':''} ${isR?'<span class="badge b-res">재단</span>':''}</div></div><div style="margin-left:auto;font-size:20px;font-weight:900;color:${getColor(name)};">${my.length}</div></div><div class="pstats"><div class="pstat"><div class="pstat-n" style="color:${getColor(name)}">${my.length}</div><div class="pstat-l">총</div></div><div class="pstat"><div class="pstat-n" style="color:var(--success)">${done}</div><div class="pstat-l">완료</div></div><div class="pstat"><div class="pstat-n">${my.length-done}</div><div class="pstat-l">미완료</div></div><div class="pstat"><div class="pstat-n">${up.length}</div><div class="pstat-l">예정</div></div></div><div class="psched">${up.slice(0,5).map(ev=>{const dt=new Date(ev.출장일);return`<div class="pev" onclick="openDetail('${ev.ID}')"><div class="pev-date">${dt.getMonth()+1}/${dt.getDate()}(${DAYS[dt.getDay()]})</div><div class="pev-name">${ev.어린이집}</div><span class="badge ${ev.대면구분==='대면'?'b-face':'b-non'}" style="font-size:9px;">${ev.대면구분}</span></div>`;}).join('')}${up.length===0?`<div style="text-align:center;color:var(--muted);font-size:11px;padding:8px;">예정 출장 없음</div>`:''}</div></div>`;
+    return`<div class="pcard"><div class="phd" style="background:${getColor(name)}18;border-bottom:1px solid ${getColor(name)}30;"><div class="pavatar" style="background:${getColor(name)}">${name[0]}</div><div><div class="pname">${name}</div><div class="prole">${isK?'<span class="badge b-kcct">KCCT</span>':''} ${isR?'<span class="badge b-res">재단</span>':''}</div></div><div style="margin-left:auto;font-size:20px;font-weight:900;color:${getColor(name)};">${my.length}</div></div><div class="pstats"><div class="pstat"><div class="pstat-n" style="color:${getColor(name)}">${my.length}</div><div class="pstat-l">총</div></div><div class="pstat"><div class="pstat-n" style="color:var(--success)">${done}</div><div class="pstat-l">완료</div></div><div class="pstat"><div class="pstat-n">${my.length-done}</div><div class="pstat-l">미완료</div></div><div class="pstat"><div class="pstat-n">${up.length}</div><div class="pstat-l">예정</div></div></div><div class="psched">${up.slice(0,5).map(ev=>{const dt=new Date(ev_date(ev));return`<div class="pev" onclick="openDetail('${ev_id(ev)}')"><div class="pev-date">${dt.getMonth()+1}/${dt.getDate()}(${DAYS[dt.getDay()]})</div><div class="pev-name">${ev_name(ev)}</div><span class="badge ${ev_type(ev)==='대면'?'b-face':'b-non'}" style="font-size:9px;">${ev_type(ev)}</span></div>`;}).join('')}${up.length===0?`<div style="text-align:center;color:var(--muted);font-size:11px;padding:8px;">예정 출장 없음</div>`:''}</div></div>`;
   }).join('');
 }
 
@@ -970,27 +977,33 @@ function renderPersonPage(){
 function renderList(){
   const data=loadLocal();const year=parseInt(document.getElementById('lyear').value)||TODAY.getFullYear();
   const month=parseInt(document.getElementById('lmonth').value)||null;const person=document.getElementById('lperson').value||'';
-  const type=document.getElementById('ltype').value||'';const done=document.getElementById('ldone').value||'';
+  const type=document.getElementById('ltype').value||'';const doneF=document.getElementById('ldone').value||'';
   const search=(document.getElementById('lsearch').value||'').trim().toLowerCase();
-  let fd=data.filter(d=>getYear(d.출장일)===year||d.출장일==='미정');
-  if(month)fd=fd.filter(d=>getMonth(d.출장일)===month);if(person)fd=fd.filter(d=>d.KCCT연구원===person||d.재단연구원===person);
-  if(type)fd=fd.filter(d=>d.대면구분===type);if(done)fd=fd.filter(d=>(d.완료여부||'N')===done);
-  if(search)fd=fd.filter(d=>(d.어린이집||'').toLowerCase().includes(search));
-  fd.sort((a,b)=>{if(a.출장일==='미정')return 1;if(b.출장일==='미정')return -1;return a.출장일.localeCompare(b.출장일);});
+  let fd=data.filter(d=>getYear(ev_date(d))===year||ev_date(d)==='미정');
+  if(month)fd=fd.filter(d=>getMonth(ev_date(d))===month);
+  if(person)fd=fd.filter(d=>ev_kcct(d)===person||ev_res(d)===person);
+  if(type)fd=fd.filter(d=>ev_type(d)===type);
+  if(doneF)fd=fd.filter(d=>(d['완료여부']||d.done||'N')===doneF);
+  if(search)fd=fd.filter(d=>ev_name(d).toLowerCase().includes(search));
+  fd.sort((a,b)=>{if(ev_date(a)==='미정')return 1;if(ev_date(b)==='미정')return -1;return ev_date(a).localeCompare(ev_date(b));});
   document.getElementById('listTitle').textContent=`${year}년 ${month?month+'월 ':''}출장 목록`;
   document.getElementById('listCount').textContent=`총 ${fd.length}건`;
   const tb=document.getElementById('listBody');
   if(!fd.length){tb.innerHTML=`<tr><td colspan="11"><div class="empty"><div class="ei">🔍</div>결과 없음</div></td></tr>`;return;}
-  tb.innerHTML=fd.map((d,i)=>{const isDone=d.완료여부==='Y';const canDel=SESSION.role==='ADMIN';
+  tb.innerHTML=fd.map((d,i)=>{
+    const isDone=ev_done(d);const canDel=SESSION.role==='ADMIN';
+    const id=ev_id(d);const nm=ev_name(d);const dt=ev_date(d);const ti=ev_time(d);const tp=ev_type(d);
+    const director=d['원장']||d.director||'';const note=d['기타사항']||d.note||'';
+    const kcct=ev_kcct(d);const res=ev_res(d);
     return`<tr class="${isDone?'done-row':''}"><td style="color:var(--muted);font-size:11px;">${i+1}</td>
-      <td style="white-space:nowrap;font-weight:700;${isDone?'text-decoration:line-through;':''}">${fmtDate(d.출장일)}</td>
-      <td><b class="childcare-name">${d.어린이집||''}</b></td><td>${d.원장||''}</td>
-      <td><span class="badge b-kcct">${d.KCCT연구원||'-'}</span></td><td><span class="badge b-res">${d.재단연구원||'-'}</span></td>
-      <td style="font-weight:700;">${d.시간||'-'}</td>
-      <td><span class="badge ${d.대면구분==='대면'?'b-face':'b-non'}">${d.대면구분||'-'}</span></td>
-      <td><span class="badge ${isDone?'b-done':'b-pending'}" style="cursor:pointer;" onclick="quickToggle('${d.ID}')">${isDone?'✅ 완료':'⏳ 미완료'}</span></td>
-      <td style="max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted);">${d.기타사항||''}</td>
-      <td style="white-space:nowrap;"><button class="btn btn-ghost btn-xs" onclick="openDetail('${d.ID}')">상세</button>${canDel?`<button class="btn btn-danger btn-xs" onclick="quickDelete('${d.ID}')">삭제</button>`:''}</td>
+      <td style="white-space:nowrap;font-weight:700;${isDone?'text-decoration:line-through;':''}">${fmtDate(dt)}</td>
+      <td><b class="childcare-name">${nm}</b></td><td>${director}</td>
+      <td><span class="badge b-kcct">${kcct||'-'}</span></td><td><span class="badge b-res">${res||'-'}</span></td>
+      <td style="font-weight:700;">${ti||'-'}</td>
+      <td><span class="badge ${tp==='대면'?'b-face':'b-non'}">${tp||'-'}</span></td>
+      <td><span class="badge ${isDone?'b-done':'b-pending'}" style="cursor:pointer;" onclick="quickToggle('${id}')">${isDone?'✅ 완료':'⏳ 미완료'}</span></td>
+      <td style="max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted);">${note}</td>
+      <td style="white-space:nowrap;"><button class="btn btn-ghost btn-xs" onclick="openDetail('${id}')">상세</button>${canDel?`<button class="btn btn-danger btn-xs" onclick="quickDelete('${id}')">삭제</button>`:''}</td>
     </tr>`;}).join('');
 }
 
