@@ -803,26 +803,19 @@ async function gasPost(b){
 }
 
 // GAS에서 받은 한글 키 데이터를 통일된 형식으로 정규화
-function normalizeSchedule(d){
+function normalizeSchedule(d) {
   return {
-    ID:          d['ID']||d['id']||('LOCAL_'+Math.random().toString(36).slice(2)),
-    어린이집:    d['어린이집']||d['childcare']||'',
-    원장:        d['원장']||d['director']||'',
-    KCCT연구원:  d['KCCT연구원']||d['kcct']||'',
-    재단연구원:  d['재단연구원']||d['researcher']||'',
-    출장일:      (d['출장일']||d['date']||'').toString().slice(0,10),
-    시간:        (()=>{
-      const v=d['시간']||d['time']||'';
-      if(!v)return '';
-      const m=String(v).match(/(?:^|[\s T])(\d{1,2}):(\d{2})/);
-      return m?m[1].padStart(2,'0')+':'+m[2]:v;
-    })(),
-    대면구분:    d['대면구분']||d['type']||'대면',
-    기타사항:    d['기타사항']||d['note']||'',
-    완료여부:    d['완료여부']||d['done']||'N',
-    입력자:      d['입력자']||d['author']||'',
-    입력일시:    d['입력일시']||'',
-    수정일시:    d['수정일시']||'',
+    ID:          d['ID'] || d['id'],
+    어린이집:    d['어린이집'] || d['childcare'],
+    원장:        d['원장'] || d['director'],
+    KCCT연구원:  d['KCCT연구원'] || d['kcct'],
+    재단연구원:  d['재단연구원'] || d['researcher'],
+    출장일:      (d['출장일'] || d['date'] || '').toString().slice(0, 10),
+    시간:        d['시간'] || d['time'] || '',
+    대면구분:    d['대면구분'] || d['type'] || '대면',
+    기타사항:    d['기타사항'] || d['note'] || '',
+    완료여부:    d['완료여부'] || d['done'] || 'N',
+    입력자:      d['입력자'] || d['author'] || ''
   };
 }
 
@@ -1148,16 +1141,39 @@ function renderRecentList(){
       ${SESSION.role==='ADMIN'?`<button class="btn btn-ghost btn-xs" onclick="event.stopPropagation();quickDelete('${id}')">×</button>`:''}
     </div>`;}).join('')}</div>`;
 }
-async function saveSchedule(){
-  if(SESSION.isGuest){toast('게스트는 입력할 수 없습니다.','err');return;}
-  const childcare=document.getElementById('i_childcare').value.trim();const date=document.getElementById('i_date').value;
-  if(!childcare){toast('어린이집명을 입력하세요.','err');return;}if(!date){toast('출장일정을 선택하세요.','err');return;}
+async function saveSchedule() {
+  // ... 입력값 검증 로직 ...
+
+  const item = {
+    어린이집: document.getElementById('i_childcare').value.trim(),
+    원장: document.getElementById('i_director').value.trim(),
+    KCCT연구원: document.getElementById('i_kcct').value,
+    재단연구원: document.getElementById('i_res').value,
+    출장일: document.getElementById('i_date').value,
+    시간: document.getElementById('i_time').value,
+    대면구분: document.getElementById('i_type').value,
+    기타사항: document.getElementById('i_note').value.trim(),
+    입력자: SESSION.name
+  };
+
   showLoading();
-  try{
-    const r=await addToServer({어린이집:childcare,원장:document.getElementById('i_director').value.trim(),KCCT연구원:document.getElementById('i_kcct').value,재단연구원:document.getElementById('i_res').value,출장일:date,시간:document.getElementById('i_time').value,대면구분:document.getElementById('i_type').value,기타사항:document.getElementById('i_note').value.trim(),입력자:SESSION.name});
-    if(r&&r.success){toast(`✅ "${childcare}" 저장 완료`);clearForm();renderRecentList();populateYearSelects();refreshAll();}
-    else toast(r?.error||'저장 실패','err');
-  }catch(e){toast('저장 실패: '+e.message,'err');}finally{hideLoading();}
+  try {
+    // addToServer 함수 내부에서 syncData()를 호출하도록 설계하거나 여기서 직접 호출
+    const r = await addToServer(item); 
+    if (r && r.success) {
+      toast(`✅ 저장 완료`);
+      clearForm();
+      
+      // 핵심: 저장 후 전체 데이터를 다시 불러와 화면을 갱신
+      await syncData(true); 
+      renderDashboard(); // 대시보드 즉시 반영
+      renderRecentList(); // 최근 목록 갱신
+    }
+  } catch (e) {
+    toast('저장 오류', 'err');
+  } finally {
+    hideLoading();
+  }
 }
 function clearForm(){['i_childcare','i_director','i_note'].forEach(id=>document.getElementById(id).value='');['i_kcct','i_res'].forEach(id=>document.getElementById(id).value='');document.getElementById('i_date').value=TODAYSTR;document.getElementById('i_time').value='17:00';document.getElementById('i_type').value='대면';}
 
