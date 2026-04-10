@@ -988,7 +988,12 @@ function clearInp(){
   ['ik','ir'].forEach(function(id){document.getElementById(id).value='';});
   document.getElementById('idate').value=TDSTR;document.getElementById('itime').value='17:00';document.getElementById('ityp').value='대면';
 }
-
+function refreshAll(){
+  renderDash();
+  renderCal();
+  renderPerson();
+  renderList();
+}
 // ════════════════════════════════════════════════════
 //  모달
 // ════════════════════════════════════════════════════
