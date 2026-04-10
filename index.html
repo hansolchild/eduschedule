@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>교육연구소 연구어린이집 일정관리시스템</title>
+<title>교육연구팀 출장일정관리시스템</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700;800;900&display=swap');
@@ -289,8 +289,8 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
   <div class="login-box">
     <div class="login-logo">
       <div class="logo-icon">📅</div>
-      <div class="login-title">연구어린이집일정관리시스템</div>
-      <div class="login-sub">한솔영유아교육연구소 교육연구팀</div>
+      <div class="login-title">출장일정관리시스템</div>
+      <div class="login-sub">한솔어린이보육재단 교육연구팀</div>
     </div>
     <div class="login-error" id="loginError"></div>
     <div class="fgrp" style="margin-bottom:12px;">
@@ -306,7 +306,7 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
       <button class="btn btn-ghost btn-sm" onclick="guestLogin()">👁 게스트 접속 (조회만 가능)</button>
     </div>
     <div style="margin-top:14px;padding:10px;background:var(--surface2);border-radius:var(--r-sm);font-size:11px;color:var(--muted);text-align:center;">
-      관리자: <b>한솔영유아교육연구소</b><br>
+      최초 관리자: <b>관리자 / admin1234</b><br>GAS 연결 후 반드시 비밀번호를 변경하세요.
     </div>
   </div>
 </div>
@@ -323,8 +323,8 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
   <div style="display:flex;align-items:center;">
     <div class="hd-logo">📅</div>
     <div class="hd-text">
-      <div class="hd-title">연구어린이집일정관리시스템</div>
-      <div class="hd-sub">한솔영유아교육연구소 · 교육연구팀</div>
+      <div class="hd-title">교육연구팀 출장일정관리시스템</div>
+      <div class="hd-sub">한솔어린이보육재단 · 교육연구팀</div>
     </div>
   </div>
   <div class="hd-right">
@@ -632,25 +632,10 @@ const LS_INTV  = 'kcct_refresh_interval';
 const LS_TOKEN = 'kcct_session_token';
 const LS_USER  = 'kcct_session_user';
 
-const INITIAL_DATA = [
-  {ID:'ID_init_001',어린이집:'경기꿈드림',원장:'박빛나',KCCT연구원:'신혜진',재단연구원:'노혜민',출장일:'2026-04-30',시간:'17:00',대면구분:'대면',기타사항:'',완료여부:'N',입력자:'(기본)',입력일시:'2026-01-01 00:00:00',수정일시:'2026-01-01 00:00:00'},
-  {ID:'ID_init_002',어린이집:'경기꿈드림',원장:'박빛나',KCCT연구원:'신혜진',재단연구원:'노혜민',출장일:'2026-05-19',시간:'17:00',대면구분:'대면',기타사항:'',완료여부:'N',입력자:'(기본)',입력일시:'2026-01-01 00:00:00',수정일시:'2026-01-01 00:00:00'},
-  {ID:'ID_init_003',어린이집:'경기꿈드림',원장:'박빛나',KCCT연구원:'신혜진',재단연구원:'노혜민',출장일:'2026-06-23',시간:'17:00',대면구분:'대면',기타사항:'',완료여부:'N',입력자:'(기본)',입력일시:'2026-01-01 00:00:00',수정일시:'2026-01-01 00:00:00'},
-  {ID:'ID_init_004',어린이집:'경기꿈드림',원장:'박빛나',KCCT연구원:'신혜진',재단연구원:'노혜민',출장일:'2026-07-28',시간:'17:00',대면구분:'대면',기타사항:'',완료여부:'N',입력자:'(기본)',입력일시:'2026-01-01 00:00:00',수정일시:'2026-01-01 00:00:00'},
-  {ID:'ID_init_005',어린이집:'경찰대학',원장:'고영숙',KCCT연구원:'이오영',재단연구원:'임나라',출장일:'2026-04-20',시간:'17:00',대면구분:'대면',기타사항:'',완료여부:'N',입력자:'(기본)',입력일시:'2026-01-01 00:00:00',수정일시:'2026-01-01 00:00:00'},
-  {ID:'ID_init_006',어린이집:'경찰대학',원장:'고영숙',KCCT연구원:'이오영',재단연구원:'임나라',출장일:'2026-06-25',시간:'17:00',대면구분:'대면',기타사항:'',완료여부:'N',입력자:'(기본)',입력일시:'2026-01-01 00:00:00',수정일시:'2026-01-01 00:00:00'},
-  {ID:'ID_init_007',어린이집:'경찰대학',원장:'고영숙',KCCT연구원:'이오영',재단연구원:'임나라',출장일:'2026-08-20',시간:'17:00',대면구분:'대면',기타사항:'',완료여부:'N',입력자:'(기본)',입력일시:'2026-01-01 00:00:00',수정일시:'2026-01-01 00:00:00'},
-  {ID:'ID_init_008',어린이집:'경찰대학',원장:'고영숙',KCCT연구원:'이오영',재단연구원:'임나라',출장일:'2026-10-22',시간:'17:00',대면구분:'대면',기타사항:'',완료여부:'N',입력자:'(기본)',입력일시:'2026-01-01 00:00:00',수정일시:'2026-01-01 00:00:00'},
-  {ID:'ID_init_009',어린이집:'고양경찰서',원장:'유은정',KCCT연구원:'최현아',재단연구원:'노혜민',출장일:'2026-04-17',시간:'16:30',대면구분:'대면',기타사항:'',완료여부:'N',입력자:'(기본)',입력일시:'2026-01-01 00:00:00',수정일시:'2026-01-01 00:00:00'},
-  {ID:'ID_init_010',어린이집:'고양경찰서',원장:'유은정',KCCT연구원:'최현아',재단연구원:'노혜민',출장일:'2026-06-16',시간:'16:30',대면구분:'대면',기타사항:'',완료여부:'N',입력자:'(기본)',입력일시:'2026-01-01 00:00:00',수정일시:'2026-01-01 00:00:00'},
-  {ID:'ID_init_011',어린이집:'고양경찰서',원장:'유은정',KCCT연구원:'최현아',재단연구원:'노혜민',출장일:'2026-07-21',시간:'16:30',대면구분:'대면',기타사항:'',완료여부:'N',입력자:'(기본)',입력일시:'2026-01-01 00:00:00',수정일시:'2026-01-01 00:00:00'},
-  {ID:'ID_init_012',어린이집:'고양경찰서',원장:'유은정',KCCT연구원:'최현아',재단연구원:'노혜민',출장일:'2026-08-25',시간:'16:30',대면구분:'대면',기타사항:'',완료여부:'N',입력자:'(기본)',입력일시:'2026-01-01 00:00:00',수정일시:'2026-01-01 00:00:00'},
-  {ID:'ID_init_013',어린이집:'고양경찰서',원장:'유은정',KCCT연구원:'최현아',재단연구원:'노혜민',출장일:'2026-09-29',시간:'16:30',대면구분:'대면',기타사항:'',완료여부:'N',입력자:'(기본)',입력일시:'2026-01-01 00:00:00',수정일시:'2026-01-01 00:00:00'},
-  {ID:'ID_init_014',어린이집:'고양경찰서',원장:'김희정',KCCT연구원:'김희정',재단연구원:'김희정',출장일:'2026-08-05',시간:'16:00',대면구분:'대면',기타사항:'',완료여부:'N',입력자:'(기본)',입력일시:'2026-01-01 00:00:00',수정일시:'2026-01-01 00:00:00'},
-];
+const INITIAL_DATA = []; // 초기 데이터 없음 - GAS에서 로드
 
-let KCCT_LIST       = ['송해리','신혜진','이오영','최현아','김희정'];
-let RESEARCHER_LIST = ['정이슬','조성민','노혜민','임나라','김희정'];
+let KCCT_LIST       = []; // GAS 설정에서 로드
+let RESEARCHER_LIST = []; // GAS 설정에서 로드
 const COLORS = ['#1e3a8a','#065f46','#7c3aed','#c2410c','#0d9488','#be185d','#1d4ed8','#92400e'];
 
 // 임시 태그 상태 (관리자 편집 중)
@@ -812,7 +797,11 @@ function normalizeSchedule(d){
 }
 
 async function syncData(silent=false){
-  if(!isConnected()){setSyncStatus(false,'로컬 모드');return;}
+  if(!isConnected()){
+    setSyncStatus(false,'GAS 미연결 - 설정 필요');
+    toast('GAS URL을 설정하면 데이터가 로드됩니다.','warn');
+    return;
+  }
   if(!silent)showLoading();
   try{
     const r=await gasGet({action:'getAll'});
