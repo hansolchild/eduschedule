@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>연구어린이집 일정관리 시스템</title>
+<title>교육연구팀 출장일정관리시스템</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700;800;900&display=swap');
@@ -289,8 +289,8 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
   <div class="login-box">
     <div class="login-logo">
       <div class="logo-icon">📅</div>
-      <div class="login-title">연구어린이집 일정관리 시스템</div>
-      <div class="login-sub">한솔영유아교육연구소 교육연구팀</div>
+      <div class="login-title">출장일정관리시스템</div>
+      <div class="login-sub">한솔어린이보육재단 교육연구팀</div>
     </div>
     <div class="login-error" id="loginError"></div>
     <div class="fgrp" style="margin-bottom:12px;">
@@ -306,7 +306,7 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
       <button class="btn btn-ghost btn-sm" onclick="guestLogin()">👁 게스트 접속 (조회만 가능)</button>
     </div>
     <div style="margin-top:14px;padding:10px;background:var(--surface2);border-radius:var(--r-sm);font-size:11px;color:var(--muted);text-align:center;">
-      관리자: <b>한솔영유아교육연구소</b><br>
+      최초 관리자: <b>관리자 / admin1234</b><br>GAS 연결 후 반드시 비밀번호를 변경하세요.
     </div>
   </div>
 </div>
@@ -539,6 +539,14 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
       <label class="flbl">Google Apps Script 배포 URL *</label>
       <input type="url" class="gas-url-input" id="gasUrl" placeholder="https://script.google.com/macros/s/XXXXXXXX/exec">
     </div>
+    <div class="fgrp" style="margin-bottom:16px;">
+      <label class="flbl">🔑 API 보안 키 *</label>
+      <input type="password" class="gas-url-input" id="gasApiKey" placeholder="GAS 스크립트 속성에 설정한 API_KEY 값 입력"
+        style="font-family:'Noto Sans KR',sans-serif;">
+      <div style="font-size:11px;color:var(--muted);margin-top:4px;">
+        Apps Script → 프로젝트 설정 → 스크립트 속성 → API_KEY 값과 동일하게 입력하세요.
+      </div>
+    </div>
     <div style="margin-bottom:16px;">
       <label class="flbl" style="margin-bottom:6px;display:block;">자동 새로고침 간격</label>
       <select class="fsel" id="refreshInterval">
@@ -627,6 +635,7 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
 //  CONFIG & STATE
 // ══════════════════════════════════════════════════════════════
 const LS_GAS   = 'kcct_gas_url';
+const LS_APIKEY= 'kcct_api_key';       // API 키 (설정탭에서 입력)
 const LS_DATA  = 'kcct_schedules_v3';
 const LS_INTV  = 'kcct_refresh_interval';
 const LS_TOKEN = 'kcct_session_token';
@@ -675,26 +684,26 @@ async function doLogin(){
         r=await res.json();
       }
       if(r&&r.success){
-        // v4: 토큰 없이 이름/역할만 저장
-        SESSION={token:'GAS_SESSION',name:r.name,role:r.role,isGuest:false};
+        SESSION={token:r.token||'GAS_SESSION',name:r.name,role:r.role,isGuest:false};
+        localStorage.setItem(LS_TOKEN, r.token||'');
         localStorage.setItem(LS_USER,JSON.stringify({name:r.name,role:r.role}));
         enterApp();
       }else{
-        if(name==='관리자'&&pw==='admin'){
+        if(name==='관리자'&&pw==='admin1234'){
           SESSION={token:'LOCAL_ADMIN',name:'관리자',role:'ADMIN',isGuest:false};
           enterApp();toast('로컬 관리자로 로그인','warn');
         }else{showLoginError(r?.error||'이름 또는 비밀번호가 올바르지 않습니다');}
       }
     }else{
       // GAS 미연결: 로컬 모드
-      if(name==='관리자'&&pw==='admin'){
+      if(name==='관리자'&&pw==='admin1234'){
         SESSION={token:'LOCAL_ADMIN',name:'관리자',role:'ADMIN',isGuest:false};
         enterApp();toast('로컬 모드로 로그인 (설정 탭에서 GAS URL 입력 필요)','warn');
-      }else{showLoginError('GAS 미연결 상태입니다. 설정 탭에서 GAS URL을 먼저 입력하거나, 관리자/admin로 로그인하세요.');}
+      }else{showLoginError('GAS 미연결 상태입니다. 설정 탭에서 GAS URL을 먼저 입력하거나, 관리자/admin1234로 로그인하세요.');}
     }
   }catch(e){
     // 모든 연결 실패 → 로컬 폴백
-    if(name==='관리자'&&pw==='admin'){
+    if(name==='관리자'&&pw==='admin1234'){
       SESSION={token:'LOCAL_ADMIN',name:'관리자',role:'ADMIN',isGuest:false};
       enterApp();toast('GAS 연결 실패, 로컬 모드로 로그인됨','warn');
     }else{showLoginError('연결 오류: '+e.message);}
@@ -727,8 +736,8 @@ function showLoginError(msg){
 }
 
 async function doLogout(){
-  if(!SESSION.isGuest&&SESSION.token&&isConnected()){
-    try{await gasPost({action:'logout',token:SESSION.token});}catch(e){}
+  if(!SESSION.isGuest&&SESSION.token&&SESSION.token!=='LOCAL_ADMIN'&&isConnected()){
+    try{await gasPost({action:'logout'});}catch(e){}
   }
   SESSION={token:'',name:'',role:'',isGuest:false};
   localStorage.removeItem(LS_TOKEN);localStorage.removeItem(LS_USER);
@@ -759,19 +768,26 @@ function saveLocal(d){localStorage.setItem(LS_DATA,JSON.stringify(d));}
 function getGasUrl(){return localStorage.getItem(LS_GAS)||'';}
 function isConnected(){return !!getGasUrl();}
 
+function getApiKey(){ return localStorage.getItem(LS_APIKEY)||''; }
 async function gasGet(p={}){
   const url=getGasUrl();if(!url)return null;
-  const r=await fetch(`${url}?${new URLSearchParams(p)}`,{method:'GET'});
+  // API 키 자동 포함
+  const params={...p, key:getApiKey()};
+  const r=await fetch(`${url}?${new URLSearchParams(params)}`,{method:'GET'});
   return r.json();
 }
 async function gasPost(b){
   const url=getGasUrl();if(!url)return null;
+  // API 키 + 토큰 자동 포함
+  const body={...b, key:getApiKey()};
+  if(SESSION.token&&SESSION.token!=='GAS_SESSION'&&SESSION.token!=='LOCAL_ADMIN')
+    body.token=SESSION.token;
   try{
-    const r=await fetch(url,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify(b)});
+    const r=await fetch(url,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify(body)});
     return await r.json();
   }catch(e){
-    // CORS 우회: GET 방식으로 재시도 (action과 payload를 쿼리스트링으로)
-    const qs=new URLSearchParams({payload:JSON.stringify(b)});
+    // CORS 우회: GET payload 방식
+    const qs=new URLSearchParams({payload:JSON.stringify(body),key:getApiKey()});
     const r2=await fetch(`${url}?${qs}`,{method:'GET'});
     return await r2.json();
   }
@@ -809,7 +825,7 @@ async function syncData(silent=false){
   }
   if(!silent)showLoading();
   try{
-    const r=await gasGet({action:'getAll'});
+    const r=await gasGet({action:'getAll',token:SESSION.token});
     if(r&&r.schedules){
       // 받은 데이터를 정규화해서 저장 → 달력/목록 모두 동일한 키로 읽음
       const normalized=r.schedules.map(normalizeSchedule);
@@ -1356,16 +1372,21 @@ async function loadAuditLog(){
 // ══════════════════════════════════════════════════════════════
 function loadSettings(){
   document.getElementById('gasUrl').value=localStorage.getItem(LS_GAS)||'';
+  document.getElementById('gasApiKey').value=localStorage.getItem(LS_APIKEY)||'';
   document.getElementById('refreshInterval').value=localStorage.getItem(LS_INTV)||'60';
   const connected=!!localStorage.getItem(LS_GAS);document.getElementById('setupNotice').className='setup-notice'+(connected?'':' show');
 }
 async function saveSettings(){
-  const url=document.getElementById('gasUrl').value.trim();const intv=document.getElementById('refreshInterval').value;
-  if(url)localStorage.setItem(LS_GAS,url);localStorage.setItem(LS_INTV,intv);
+  const url=document.getElementById('gasUrl').value.trim();
+  const apiKey=document.getElementById('gasApiKey').value.trim();
+  const intv=document.getElementById('refreshInterval').value;
+  if(url)localStorage.setItem(LS_GAS,url);
+  if(apiKey)localStorage.setItem(LS_APIKEY,apiKey);
+  localStorage.setItem(LS_INTV,intv);
   const status=document.getElementById('connStatus');if(!url){status.innerHTML='<span style="color:var(--danger);">URL을 입력하세요.</span>';return;}
   status.innerHTML='<span style="color:var(--muted);">🔄 연결 테스트 중...</span>';showLoading();
   try{
-    const r=await gasGet({action:'getAll'});if(r&&r.schedules){
+    const r=await gasGet({action:'getAll',token:SESSION.token});if(r&&r.schedules){
       saveLocal(r.schedules);status.innerHTML=`<span style="color:var(--success);">✅ 연결 성공! ${r.schedules.length}건 동기화</span>`;
       setSyncStatus(true,'연결됨');document.getElementById('setupNotice').className='setup-notice';
       toast('GAS 연결 성공!');startAutoRefresh();refreshAll();
@@ -1397,13 +1418,14 @@ function init(){
 
 // 자동 로그인 복원 시도
 window.addEventListener('DOMContentLoaded',()=>{
-  // v4: 토큰 없이 저장된 사용자 정보로 자동 복원
+  // 저장된 세션 자동 복원
+  const savedToken=localStorage.getItem(LS_TOKEN)||'';
   const savedUser=localStorage.getItem(LS_USER);
   if(savedUser){
     try{
       const u=JSON.parse(savedUser);
       if(u.name&&u.role){
-        SESSION={token:'GAS_SESSION',name:u.name,role:u.role,isGuest:false};
+        SESSION={token:savedToken||'GAS_SESSION',name:u.name,role:u.role,isGuest:false};
         enterApp();
       }
     }catch(e){localStorage.removeItem(LS_USER);}
