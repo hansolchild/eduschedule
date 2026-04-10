@@ -786,7 +786,12 @@ function normalizeSchedule(d){
     KCCT연구원:  d['KCCT연구원']||d['kcct']||'',
     재단연구원:  d['재단연구원']||d['researcher']||'',
     출장일:      (d['출장일']||d['date']||'').toString().slice(0,10),
-    시간:        d['시간']||d['time']||'',
+    시간:        (()=>{
+      const v=d['시간']||d['time']||'';
+      if(!v)return '';
+      const m=String(v).match(/(?:^|[\s T])(\d{1,2}):(\d{2})/);
+      return m?m[1].padStart(2,'0')+':'+m[2]:v;
+    })(),
     대면구분:    d['대면구분']||d['type']||'대면',
     기타사항:    d['기타사항']||d['note']||'',
     완료여부:    d['완료여부']||d['done']||'N',
@@ -955,7 +960,15 @@ function ev_date(e)     { const v=e['출장일']||e.date||''; return v?String(v)
 function ev_name(e)     { return e['어린이집']||e.childcare||''; }
 function ev_kcct(e)     { return e['KCCT연구원']||e.kcct||''; }
 function ev_res(e)      { return e['재단연구원']||e.researcher||''; }
-function ev_time(e)     { return e['시간']||e.time||'17:00'; }
+function ev_time(e){
+  const v=e['시간']||e.time||'';
+  if(!v) return '';
+  const s=String(v);
+  // "1899-12-30 17:00:00" 또는 "17:00:00" → "17:00"
+  const m=s.match(/(\d{1,2}):(\d{2})(?::\d{2})?$/);
+  if(m) return m[1].padStart(2,'0')+':'+m[2];
+  return s;
+}
 function ev_type(e)     { return e['대면구분']||e.type||'대면'; }
 function ev_done(e)     { return (e['완료여부']||e.done||'N')==='Y'; }
 
