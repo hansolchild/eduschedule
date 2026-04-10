@@ -876,7 +876,21 @@ function jumpToMonth(y,m){calYear=y;calMonth=m;document.getElementById('calYear'
 function calGo(){calYear=parseInt(document.getElementById('calYear').value)||TODAY.getFullYear();calMonth=1;renderCal();}
 function calPrev(){const v=document.getElementById('calView').value;if(v==='year')calYear--;else if(v==='month'){calMonth--;if(calMonth<1){calMonth=12;calYear--;}}else calWeek.setDate(calWeek.getDate()-7);document.getElementById('calYear').value=calYear;renderCal();}
 function calNext(){const v=document.getElementById('calView').value;if(v==='year')calYear++;else if(v==='month'){calMonth++;if(calMonth>12){calMonth=1;calYear++;}}else calWeek.setDate(calWeek.getDate()+7);document.getElementById('calYear').value=calYear;renderCal();}
-function getCalData(){const d=loadLocal();const p=document.getElementById('calPerson')?.value||'';return p?d.filter(x=>x.KCCT연구원===p||x.재단연구원===p):d;}
+// ── 데이터 필드 통합 접근자 (GAS 한글키 + 로컬 한글키 모두 대응) ──
+function ev_id(e)       { return e.ID||e.id||''; }
+function ev_date(e)     { return e['출장일']||e.date||''; }
+function ev_name(e)     { return e['어린이집']||e.childcare||''; }
+function ev_kcct(e)     { return e['KCCT연구원']||e.kcct||''; }
+function ev_res(e)      { return e['재단연구원']||e.researcher||''; }
+function ev_time(e)     { return e['시간']||e.time||'17:00'; }
+function ev_type(e)     { return e['대면구분']||e.type||'대면'; }
+function ev_done(e)     { return (e['완료여부']||e.done||'N')==='Y'; }
+
+function getCalData(){
+  const d=loadLocal();
+  const p=document.getElementById('calPerson')?.value||'';
+  return p?d.filter(x=>ev_kcct(x)===p||ev_res(x)===p):d;
+}
 function renderCal(){
   const v=document.getElementById('calView').value,data=getCalData(),tEl=document.getElementById('calMainTitle'),ct=document.getElementById('calContent');
   if(v==='year'){tEl.textContent=`${calYear}년 연간 일정`;ct.innerHTML=renderYearView(data,calYear);}
@@ -884,7 +898,10 @@ function renderCal(){
   else{const we=new Date(calWeek);we.setDate(we.getDate()+6);tEl.textContent=`${calWeek.getFullYear()}년 ${calWeek.getMonth()+1}/${calWeek.getDate()} ~ ${we.getMonth()+1}/${we.getDate()} 주간`;ct.innerHTML=renderWeekView(data,calWeek);}
 }
 function renderYearView(data,year){
-  const em={};data.filter(d=>getYear(d.출장일)===year).forEach(d=>{if(d.출장일&&d.출장일!=='미정')em[d.출장일]=(em[d.출장일]||0)+1;});
+  const em={};
+  data.filter(d=>getYear(ev_date(d))===year).forEach(d=>{
+    const dt=ev_date(d);if(dt&&dt!=='미정')em[dt]=(em[dt]||0)+1;
+  });
   return'<div class="year-grid">'+Array.from({length:12},(_,i)=>{const m=i+1;return`<div class="mini-cal"><div class="mini-title" onclick="jumpToMonth(${year},${m})">${m}월</div><div class="mini-grid">${DAYS.map(d=>`<div class="mini-dow">${d}</div>`).join('')}${renderMiniMonth(year,m,em)}</div></div>`;}).join('')+'</div>';
 }
 function renderMiniMonth(y,m,em){
@@ -895,8 +912,9 @@ function renderMiniMonth(y,m,em){
 }
 function jumpToMonthDay(y,m){calYear=y;calMonth=m;document.getElementById('calYear').value=y;document.getElementById('calView').value='month';renderCal();}
 function renderMonthView(data,year,month){
-  const md=data.filter(d=>getYear(d.출장일)===year&&getMonth(d.출장일)===month);
-  const em={};md.forEach(d=>{if(!em[d.출장일])em[d.출장일]=[];em[d.출장일].push(d);});
+  const md=data.filter(d=>getYear(ev_date(d))===year&&getMonth(ev_date(d))===month);
+  const em={};
+  md.forEach(d=>{const dt=ev_date(d);if(!em[dt])em[dt]=[];em[dt].push(d);});
   const fd=new Date(year,month-1,1).getDay(),ld=new Date(year,month,0).getDate(),prevLast=new Date(year,month-1,0).getDate();
   let h=`<div class="cal-grid">${DAYS.map(d=>`<div class="cal-dow">${d}</div>`).join('')}`;
   for(let i=0;i<fd;i++)h+=`<div class="cal-cell other"><div class="cal-dn">${prevLast-fd+1+i}</div></div>`;
@@ -905,7 +923,14 @@ function renderMonthView(data,year,month){
     const isT=ds===TODAYSTR,dow=new Date(year,month-1,d).getDay();
     const cls=[isT?'today':'',dow===0?'sun':'',dow===6?'sat':''].filter(Boolean).join(' ');
     const show=evs.slice(0,3),more=evs.length-3;
-    h+=`<div class="cal-cell ${cls}"><div class="cal-dn">${d}</div>${show.map(ev=>{const done=ev.완료여부==='Y';return`<div class="ev ${done?'done':ev.대면구분==='대면'?'face':'nonface'}" onclick="openDetail('${ev.ID}')" title="${ev.어린이집}|${ev.시간}">${done?'✅ ':''}<b>${ev.어린이집.length>6?ev.어린이집.slice(0,6)+'…':ev.어린이집}</b></div>`;}).join('')}${more>0?`<div class="cal-more">+${more}건</div>`:''}</div>`;
+    h+=`<div class="cal-cell ${cls}"><div class="cal-dn">${d}</div>${show.map(ev=>{
+      const done=ev_done(ev);
+      const nm=ev_name(ev);
+      const shortNm=nm.length>6?nm.slice(0,6)+'…':nm;
+      const tp=ev_type(ev);
+      const cls2=done?'done':tp==='대면'?'face':'nonface';
+      return`<div class="ev ${cls2}" onclick="openDetail('${ev_id(ev)}')" title="${nm}|${ev_time(ev)}">${done?'✅ ':''}<b>${shortNm}</b></div>`;
+    }).join('')}${more>0?`<div class="cal-more">+${more}건</div>`:''}</div>`;
   }
   const rem=(7-(fd+ld)%7)%7;for(let d=1;d<=rem;d++)h+=`<div class="cal-cell other"><div class="cal-dn">${d}</div></div>`;
   return h+'</div>';
@@ -913,8 +938,17 @@ function renderMonthView(data,year,month){
 function renderWeekView(data,ws){
   const days=Array.from({length:7},(_,i)=>{const d=new Date(ws);d.setDate(d.getDate()+i);return d;});
   const hours=Array.from({length:13},(_,i)=>i+8);
-  const em={};days.forEach(d=>{const ds=d.toISOString().slice(0,10);em[ds]=data.filter(ev=>ev.출장일===ds);});
-  return`<div class="week-wrap"><div class="wk-time"><div class="wk-time-hd"></div>${hours.map(h=>`<div class="wk-slot-t">${h}:00</div>`).join('')}</div>${days.map(d=>{const ds=d.toISOString().slice(0,10);const isT=ds===TODAYSTR;const dow=d.getDay();const evs=em[ds]||[];return`<div><div class="wk-day-hd ${isT?'today-h':''} ${dow===0?'sun-h':dow===6?'sat-h':''}">${DAYS[dow]}<br>${d.getDate()}</div><div class="wk-col" style="position:relative;height:${hours.length*48}px;">${hours.map(()=>'<div class="wk-slot"></div>').join('')}${evs.map(ev=>{const tp=(ev.시간||'17:00').split(':');const top=Math.max(0,(parseInt(tp[0])||9-8)*48+(parseInt(tp[1])||0)/60*48);const done=ev.완료여부==='Y';return`<div class="wk-ev" style="top:${top}px;background:${done?'#d1fae5':ev.대면구분==='대면'?'#dbeafe':'#fce7f3'};color:${done?'#15803d':ev.대면구분==='대면'?'#1e40af':'#9d174d'};" onclick="openDetail('${ev.ID}')"><b>${ev.시간}</b> ${ev.어린이집}${done?' ✅':''}</div>`;}).join('')}</div></div>`;}).join('')}</div>`;
+  const em={};
+  days.forEach(d=>{const ds=d.toISOString().slice(0,10);em[ds]=data.filter(ev=>ev_date(ev)===ds);});
+  return`<div class="week-wrap"><div class="wk-time"><div class="wk-time-hd"></div>${hours.map(h=>`<div class="wk-slot-t">${h}:00</div>`).join('')}</div>${days.map(d=>{
+    const ds=d.toISOString().slice(0,10);const isT=ds===TODAYSTR;const dow=d.getDay();const evs=em[ds]||[];
+    return`<div><div class="wk-day-hd ${isT?'today-h':''} ${dow===0?'sun-h':dow===6?'sat-h':''}">${DAYS[dow]}<br>${d.getDate()}</div><div class="wk-col" style="position:relative;height:${hours.length*48}px;">${hours.map(()=>'<div class="wk-slot"></div>').join('')}${evs.map(ev=>{
+      const tp=(ev_time(ev)||'17:00').split(':');
+      const top=Math.max(0,(parseInt(tp[0])||9-8)*48+(parseInt(tp[1])||0)/60*48);
+      const done=ev_done(ev);const nm=ev_name(ev);
+      return`<div class="wk-ev" style="top:${top}px;background:${done?'#d1fae5':ev_type(ev)==='대면'?'#dbeafe':'#fce7f3'};color:${done?'#15803d':ev_type(ev)==='대면'?'#1e40af':'#9d174d'};" onclick="openDetail('${ev_id(ev)}')"><b>${ev_time(ev)}</b> ${nm}${done?' ✅':''}</div>`;
+    }).join('')}</div></div>`;
+  }).join('')}</div>`;
 }
 
 // ══════════════════════════════════════════════════════════════
