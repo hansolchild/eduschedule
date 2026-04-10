@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>교육연구팀 출장일정관리시스템</title>
+<title>연구어린이집 일정관리 시스템</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700;800;900&display=swap');
@@ -289,8 +289,8 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
   <div class="login-box">
     <div class="login-logo">
       <div class="logo-icon">📅</div>
-      <div class="login-title">출장일정관리시스템</div>
-      <div class="login-sub">한솔어린이보육재단 교육연구팀</div>
+      <div class="login-title">연구어린이집 일정관리 시스템</div>
+      <div class="login-sub">한솔영유아교육연구소 교육연구팀</div>
     </div>
     <div class="login-error" id="loginError"></div>
     <div class="fgrp" style="margin-bottom:12px;">
@@ -306,7 +306,7 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
       <button class="btn btn-ghost btn-sm" onclick="guestLogin()">👁 게스트 접속 (조회만 가능)</button>
     </div>
     <div style="margin-top:14px;padding:10px;background:var(--surface2);border-radius:var(--r-sm);font-size:11px;color:var(--muted);text-align:center;">
-      최초 관리자: <b>관리자 / admin1234</b><br>GAS 연결 후 반드시 비밀번호를 변경하세요.
+      관리자: <b>한솔영유아교육연구소</b><br>
     </div>
   </div>
 </div>
@@ -680,21 +680,21 @@ async function doLogin(){
         localStorage.setItem(LS_USER,JSON.stringify({name:r.name,role:r.role}));
         enterApp();
       }else{
-        if(name==='관리자'&&pw==='admin1234'){
+        if(name==='관리자'&&pw==='admin'){
           SESSION={token:'LOCAL_ADMIN',name:'관리자',role:'ADMIN',isGuest:false};
           enterApp();toast('로컬 관리자로 로그인','warn');
         }else{showLoginError(r?.error||'이름 또는 비밀번호가 올바르지 않습니다');}
       }
     }else{
       // GAS 미연결: 로컬 모드
-      if(name==='관리자'&&pw==='admin1234'){
+      if(name==='관리자'&&pw==='admin'){
         SESSION={token:'LOCAL_ADMIN',name:'관리자',role:'ADMIN',isGuest:false};
         enterApp();toast('로컬 모드로 로그인 (설정 탭에서 GAS URL 입력 필요)','warn');
-      }else{showLoginError('GAS 미연결 상태입니다. 설정 탭에서 GAS URL을 먼저 입력하거나, 관리자/admin1234로 로그인하세요.');}
+      }else{showLoginError('GAS 미연결 상태입니다. 설정 탭에서 GAS URL을 먼저 입력하거나, 관리자/admin로 로그인하세요.');}
     }
   }catch(e){
     // 모든 연결 실패 → 로컬 폴백
-    if(name==='관리자'&&pw==='admin1234'){
+    if(name==='관리자'&&pw==='admin'){
       SESSION={token:'LOCAL_ADMIN',name:'관리자',role:'ADMIN',isGuest:false};
       enterApp();toast('GAS 연결 실패, 로컬 모드로 로그인됨','warn');
     }else{showLoginError('연결 오류: '+e.message);}
