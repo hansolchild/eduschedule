@@ -346,7 +346,7 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
   <div class="nav-tab" onclick="showPage('list')" data-page="list">📋 전체 목록</div>
   <div class="nav-tab" onclick="showPage('input')" data-page="input">✏️ 일정 입력</div>
   <div class="nav-tab admin-tab" onclick="showPage('admin')" data-page="admin" id="adminTab" style="display:none;">⚙️ 관리자</div>
-  <div class="nav-tab" onclick="showPage('setup')" data-page="setup">🔧 설정</div>
+  <div class="nav-tab" onclick="showPage('setup')" data-page="setup" id="setupTab" style="display:none;">🔧 설정</div>
 </nav>
 
 <div class="main">
@@ -372,7 +372,6 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
     <span class="flabel">연도</span><select id="calYear" onchange="calGo()"></select>
     <span class="flabel">담당자</span><select id="calPerson" onchange="renderCal()"><option value="">전체</option></select>
     <div style="flex:1"></div>
-    <button class="btn btn-pdf btn-sm" onclick="openPdfModal()">📄 PDF 출력</button>
     <button class="btn btn-ghost btn-sm" onclick="window.print()">🖨️ 인쇄</button>
   </div>
   <div class="card">
@@ -729,7 +728,10 @@ function enterApp(){
   document.getElementById('userChipName').textContent=SESSION.name;
   document.getElementById('userChipRole').textContent=SESSION.role;
   // 관리자 탭 표시
-  if(SESSION.role==='ADMIN') document.getElementById('adminTab').style.display='flex';
+  if(SESSION.role==='ADMIN'){
+    document.getElementById('adminTab').style.display='flex';
+    document.getElementById('setupTab').style.display='flex';
+  }
   // 삭제 권한: 관리자만
   init();
 }
@@ -798,7 +800,7 @@ function normalizeSchedule(d){
     원장:        d['원장']||d['director']||'',
     KCCT연구원:  d['KCCT연구원']||d['kcct']||'',
     재단연구원:  d['재단연구원']||d['researcher']||'',
-    출장일:      d['출장일']||d['date']||'',
+    출장일:      (d['출장일']||d['date']||'').toString().slice(0,10),
     시간:        d['시간']||d['time']||'',
     대면구분:    d['대면구분']||d['type']||'대면',
     기타사항:    d['기타사항']||d['note']||'',
@@ -900,8 +902,16 @@ function populatePersonSelects(){
 // ══════════════════════════════════════════════════════════════
 //  DATE UTILS
 // ══════════════════════════════════════════════════════════════
-function getYear(d){if(!d||d==='미정')return null;const dt=new Date(d);return isNaN(dt)?null:dt.getFullYear();}
-function getMonth(d){if(!d||d==='미정')return null;const dt=new Date(d);return isNaN(dt)?null:dt.getMonth()+1;}
+function getYear(d){
+  if(!d||d==='미정'||d==='')return null;
+  const s=String(d).slice(0,10); // "2026-04-10 00:00:00" → "2026-04-10"
+  const dt=new Date(s);return isNaN(dt)?null:dt.getFullYear();
+}
+function getMonth(d){
+  if(!d||d==='미정'||d==='')return null;
+  const s=String(d).slice(0,10);
+  const dt=new Date(s);return isNaN(dt)?null:dt.getMonth()+1;
+}
 function fmtDate(d){if(!d||d==='미정')return'미정';const dt=new Date(d);if(isNaN(dt))return d;return`${dt.getFullYear()}/${String(dt.getMonth()+1).padStart(2,'0')}/${String(dt.getDate()).padStart(2,'0')}(${DAYS[dt.getDay()]})`;}
 
 // ══════════════════════════════════════════════════════════════
@@ -952,7 +962,7 @@ function calPrev(){const v=document.getElementById('calView').value;if(v==='year
 function calNext(){const v=document.getElementById('calView').value;if(v==='year')calYear++;else if(v==='month'){calMonth++;if(calMonth>12){calMonth=1;calYear++;}}else calWeek.setDate(calWeek.getDate()+7);document.getElementById('calYear').value=calYear;renderCal();}
 // ── 데이터 필드 통합 접근자 (GAS 한글키 + 로컬 한글키 모두 대응) ──
 function ev_id(e)       { return e.ID||e.id||''; }
-function ev_date(e)     { return e['출장일']||e.date||''; }
+function ev_date(e)     { const v=e['출장일']||e.date||''; return v?String(v).slice(0,10):''; }
 function ev_name(e)     { return e['어린이집']||e.childcare||''; }
 function ev_kcct(e)     { return e['KCCT연구원']||e.kcct||''; }
 function ev_res(e)      { return e['재단연구원']||e.researcher||''; }
@@ -1093,7 +1103,23 @@ function renderInputPage(){
 function renderRecentList(){
   const data=loadLocal();const recent=[...data].reverse().slice(0,12);const div=document.getElementById('recentList');
   if(!recent.length){div.innerHTML='<div class="empty">입력된 일정 없음</div>';return;}
-  div.innerHTML=`<div style="display:flex;flex-direction:column;gap:5px;">${recent.map(d=>{const isDone=d.완료여부==='Y';return`<div class="pev ${isDone?'done-ev':''}" onclick="openDetail('${d.ID}')"><div class="pev-date">${(d.출장일||'미정').slice(5)}</div><div class="pev-name"${isDone?' style="text-decoration:line-through"':''}>${d.어린이집}</div><span class="badge ${isDone?'b-done':'b-pending'}" style="font-size:9px;">${isDone?'완료':'미완료'}</span>${SESSION.role==='ADMIN'?`<button class="btn btn-ghost btn-xs" onclick="event.stopPropagation();quickDelete('${d.ID}')">×</button>`:''}</div>`;}).join('')}</div>`;
+  div.innerHTML=`<div style="display:flex;flex-direction:column;gap:5px;">${recent.map(d=>{
+    const isDone=ev_done(d);
+    const id=ev_id(d);
+    const nm=ev_name(d);
+    const dt=ev_date(d);
+    const kcct=ev_kcct(d);
+    const res=ev_res(d);
+    const people=[kcct,res].filter(Boolean).join(' · ');
+    return`<div class="pev ${isDone?'done-ev':''}" onclick="openDetail('${id}')">
+      <div class="pev-date" style="min-width:44px;">${(dt||'미정').slice(5)}</div>
+      <div style="flex:1;min-width:0;">
+        <div class="pev-name"${isDone?' style="text-decoration:line-through"':''}>${nm}</div>
+        ${people?`<div style="font-size:10px;color:var(--muted);margin-top:1px;">${people}</div>`:''}
+      </div>
+      <span class="badge ${isDone?'b-done':'b-pending'}" style="font-size:9px;flex-shrink:0;">${isDone?'완료':'미완료'}</span>
+      ${SESSION.role==='ADMIN'?`<button class="btn btn-ghost btn-xs" onclick="event.stopPropagation();quickDelete('${id}')">×</button>`:''}
+    </div>`;}).join('')}</div>`;
 }
 async function saveSchedule(){
   if(SESSION.isGuest){toast('게스트는 입력할 수 없습니다.','err');return;}
